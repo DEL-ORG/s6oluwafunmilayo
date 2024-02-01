@@ -1,0 +1,165 @@
+NAME: espresso-shop-product
+LAST DEPLOYED: Sun Jan 28 11:57:12 2024
+NAMESPACE: s6oluwafunmilayo
+STATUS: pending-install
+REVISION: 1
+HOOKS:
+---
+# Source: s6funmi-espressopro/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "espresso-shop-product-s6funmi-espressopro-test-connection"
+  labels:
+    helm.sh/chart: s6funmi-espressopro-0.1.0
+    app.kubernetes.io/name: s6funmi-espressopro
+    app.kubernetes.io/instance: espresso-shop-product
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['espresso-shop-product-s6funmi-espressopro:8091']
+  restartPolicy: Never
+MANIFEST:
+---
+# Source: s6funmi-espressopro/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: espresso-shop-product-catalog
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: s6funmi-espresso-pro
+---
+# Source: s6funmi-espressopro/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-shop-product-catalog
+  labels:
+    app: s6funmi-espresso-pro
+---
+# Source: s6funmi-espressopro/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: espresso-shop-product-catalog-secret
+type: Opaque
+data:
+  POSTGRES_PASSWORD: s6oluwafunmilayo
+---
+# Source: s6funmi-espressopro/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: espresso-shop-product-catalog-configmap
+data:
+  POSTGRES_USER: postgres
+  POSTGRES_DB: database
+  HOSTNAME: s6funmiespresso-postgres-ha-postgresql
+---
+# Source: s6funmi-espressopro/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-shop-product-catalog-svc
+  labels:
+    app: s6funmi-espresso-pro
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8091
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: s6funmi-espresso-pro
+---
+# Source: s6funmi-espressopro/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: espresso-shop-product-catalog
+  labels:
+    app: s6funmi-espresso-pro
+spec:
+  selector:
+    matchLabels:
+      version: v1
+      app: s6funmi-espresso-pro
+  template:
+    metadata:
+      labels:
+        version: v1
+        app: s6funmi-espresso-pro
+    spec:
+      serviceAccountName: espresso-shop-product-catalog
+      securityContext:
+        {}
+      containers:
+        - name: s6funmi-espressopro
+          securityContext:
+            {}
+          image: "funmishade/espressoproduct:v1.0.0"
+
+          imagePullPolicy: IfNotPresent
+          envFrom:
+          - secretRef:
+              name: espresso-shop-product-catalog-secret
+          - configMapRef:
+              name: espresso-shop-product-catalog-configmap
+          ports:
+            - name: http 
+              containerPort: 80
+              protocol: TCP
+          
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+             
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: s6funmi-espressopro/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-shop-product-catalog
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: espresso-shop-product-catalog
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+NOTES:
+1. Get the application URL by running these commands:
+  export POD_NAME=$(kubectl get pods --namespace s6oluwafunmilayo -l "app.kubernetes.io/name=s6funmi-espressopro,app.kubernetes.io/instance=espresso-shop-product" -o jsonpath="{.items[0].metadata.name}")
+  export CONTAINER_PORT=$(kubectl get pod --namespace s6oluwafunmilayo $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+  echo "Visit http://127.0.0.1:8080 to use your application"
+  kubectl --namespace s6oluwafunmilayo port-forward $POD_NAME 8080:$CONTAINER_PORT

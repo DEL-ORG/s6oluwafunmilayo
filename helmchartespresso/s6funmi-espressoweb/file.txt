@@ -1,0 +1,126 @@
+NAME: s6funmi-espresso-shop-web
+LAST DEPLOYED: Sat Jan 27 04:32:34 2024
+NAMESPACE: s6oluwafunmilayo
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+HOOKS:
+MANIFEST:
+---
+# Source: s6funmi-espressoweb/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: s6funmi-espressoui
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: s6funmi-espresso-ui
+---
+# Source: s6funmi-espressoweb/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: s6funmi-espressoui
+  labels:
+    app: s6funmi-espresso-ui
+---
+# Source: s6funmi-espressoweb/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: s6funmi-espressoui
+  labels:
+    app: s6funmi-espresso-ui
+spec:
+  type: NodePort
+  ports:
+    - port: 8090
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: s6funmi-espresso-ui
+    version: v1
+---
+# Source: s6funmi-espressoweb/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s6funmi-espressoui
+  labels:
+    app: s6funmi-espresso-ui
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      app: s6funmi-espresso-ui
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: s6funmi-espresso-ui
+        version: v1
+    spec:
+      serviceAccountName: s6funmi-espressoui
+      securityContext:
+        {}
+      containers:
+        - name: s6funmi-espressoweb
+          securityContext:
+            null
+          image: "funmishade/espressoweb:v1.0.0"
+          env:
+          - name: ProductCatalogUrl
+            value: http://espresso-shop-product-catalog-svc:8091
+          - name: ReviewsUrl
+            value: http://espresso-shop-reviews-svc:8092
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http 
+              containerPort: 80
+              protocol: TCP
+          
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+             
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: s6funmi-espressoweb/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: s6funmi-espressoui
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: s6funmi-espressoui
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+NOTES:
+1. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace s6oluwafunmilayo -o jsonpath="{.spec.ports[0].nodePort}" services s6funmi-espresso-shop-web-s6funmi-espressoweb)
+  export NODE_IP=$(kubectl get nodes --namespace s6oluwafunmilayo -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT

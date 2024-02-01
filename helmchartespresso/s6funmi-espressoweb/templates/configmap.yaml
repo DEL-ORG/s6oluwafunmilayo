@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.appname }}-configmap
+  namespace: {{ .Values.ns }}
+data:
+  MASTER_GROUP_NAME: {{ .Values.login.masterGroupName }}
+  AUTH_KEY: {{ .Values.login.authKey }}
